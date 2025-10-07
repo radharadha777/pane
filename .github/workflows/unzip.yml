@@ -1,0 +1,52 @@
+name: Unzip reviactyl.zip to repository root
+
+on:
+  workflow_dispatch:        # Manual run button
+  push:
+    branches:
+      - main
+    paths:
+      - "reviactyl.zip"     # Auto-run if zip updated
+
+permissions:
+  contents: write           # Needed to push changes
+
+jobs:
+  unzip:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install unzip
+        run: sudo apt-get update && sudo apt-get install -y unzip
+
+      - name: Extract reviactyl.zip completely
+        run: |
+          echo "🧩 Extracting reviactyl.zip..."
+          mkdir -p temp_unzip
+          unzip -o reviactyl.zip -d temp_unzip
+          
+          echo "📂 Moving all extracted files to repo root..."
+          shopt -s dotglob nullglob
+          mv -f temp_unzip/* .
+          
+          echo "🧹 Cleaning up..."
+          rm -rf temp_unzip reviactyl.zip
+          ls -la
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "⚠️ No changes to commit."
+          else
+            git commit -m "✅ Extracted and moved reviactyl.zip contents to repository root"
+            git push origin main
+            echo "✅ All files successfully pushed to repository root."
+          fi
