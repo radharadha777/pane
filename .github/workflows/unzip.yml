@@ -1,15 +1,15 @@
-name: Unzip reviactyl.zip to repository root
+name: Unzip reviactyl.zip to repository root (fixed)
 
 on:
-  workflow_dispatch:        # Manual run button
+  workflow_dispatch:
   push:
     branches:
       - main
     paths:
-      - "reviactyl.zip"     # Auto-run if zip updated
+      - "reviactyl.zip"
 
 permissions:
-  contents: write           # Needed to push changes
+  contents: write
 
 jobs:
   unzip:
@@ -24,18 +24,29 @@ jobs:
       - name: Install unzip
         run: sudo apt-get update && sudo apt-get install -y unzip
 
-      - name: Extract reviactyl.zip completely
+      - name: Extract and move files safely
         run: |
-          echo "🧩 Extracting reviactyl.zip..."
+          echo "🧩 Unzipping reviactyl.zip..."
           mkdir -p temp_unzip
           unzip -o reviactyl.zip -d temp_unzip
-          
-          echo "📂 Moving all extracted files to repo root..."
+
+          echo "📂 Moving extracted files to root (including hidden ones)..."
           shopt -s dotglob nullglob
-          mv -f temp_unzip/* .
-          
+          for item in temp_unzip/*; do
+            if [ -e "$item" ]; then
+              # If the same folder already exists, merge contents
+              if [ -d "$(basename "$item")" ]; then
+                cp -rf "$item"/* "$(basename "$item")"/ || true
+              else
+                cp -rf "$item" .
+              fi
+            fi
+          done
+
           echo "🧹 Cleaning up..."
           rm -rf temp_unzip reviactyl.zip
+
+          echo "✅ Move complete. Listing files:"
           ls -la
 
       - name: Commit and push changes
@@ -44,9 +55,9 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
           if git diff --cached --quiet; then
-            echo "⚠️ No changes to commit."
+            echo "⚠️ No new changes to commit."
           else
-            git commit -m "✅ Extracted and moved reviactyl.zip contents to repository root"
+            git commit -m "✅ Extracted reviactyl.zip to root (safe overwrite)"
             git push origin main
-            echo "✅ All files successfully pushed to repository root."
+            echo "🚀 Files successfully pushed to repo root."
           fi
